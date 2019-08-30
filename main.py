@@ -52,15 +52,18 @@ class InfluxdbClient:
         else:
             return True
 
-    def write(self, metrics):
+    def write(self, rp, metrics):
         try:
-            response = self.session.post(self.url_write, data=metrics, timeout=3)
+            url = self.url_write
+            if rp != 'default':
+                url += '&rp' + rp
+            response = self.session.post(url, data=metrics, timeout=3)
             return response.status_code, response.text
         except Exception as e:
             logging.exception("write to influxdb error")
             return -1, e.message
 
-    def fail_handle(self, status, result, retry_times, metrics):
+    def fail_handle(self, status, result, retry_times, rp, metrics):
         logging.error("save fail retry_times=%s,status=%s,result=%s", retry_times, status, result)
         if self.callback:
             try:
@@ -68,33 +71,38 @@ class InfluxdbClient:
             except Exception as e:
                 logging.exception("callback error callback:%s", self.callback)
 
-    def write_until_success(self, metrics):
+    def write_until_success(self, rp, metrics):
         i = 0
-        status, result = self.write(metrics)
+        status, result = self.write(rp, metrics)
         while (status < 200 or status >= 300):
             i += 1
             if i > 2:
-                self.fail_handle(status, result, i, metrics)
+                self.fail_handle(status, result, i, rp, metrics)
             time.sleep(i)
-            status, result = self.write(metrics)
+            status, result = self.write(rp, metrics)
 
 
 def convert_message(msglist):
     try:
-        return "\n".join(str(msg.value().decode('utf-8')) for msg in msglist)
-    except Exception as e:
-        logging.exception('convert_message error')
-        # 由于下面的执行方法耗时太长，5000条数据，上面的只需要10ms 而下面的方法需要800ms左右
-        # 所以优先用上面的转换，如果有异常了再使用下面的方式
-        metrics = ''
+        metrics_map = {}
         for msg in msglist:
             if msg is None:
                 continue
             if msg.error():
                 logging.error("Consumer error: %s", msg.error())
                 continue
-            metrics += msg.value().decode('utf-8') + '\n'
-        return metrics
+            key = msg.key()
+            if not key:
+                key = 'default'
+            value = msg.value()
+            metrics = metrics_map.get(key)
+            if metrics:
+                metrics += value + '\n'
+            else:
+                metrics_map[key] = value + '\n'
+        return metrics_map
+    except Exception as e:
+        logging.exception('convert_message error')
 
 
 def init_kafka_consumer(kafka_consumer_config):
@@ -113,11 +121,14 @@ def read_and_write(kafka_consumer, influxdb, batch_size):
             time1 = time_now()
             msglist = kafka_consumer.consume(num_messages=batch_size, timeout=5.0)
             time2 = time_now()
-            metrics = convert_message(msglist)
-            if not metrics:
+            if not msglist:
+                continue
+            metrics_map = convert_message(msglist)
+            if not metrics_map:
                 continue
             time3 = time_now()
-            influxdb.write_until_success(metrics)
+            for rp, metrics in metrics_map.iteritems():
+                influxdb.write_until_success(rp, metrics)
             time4 = time_now()
             logging.info("consumer_time=%sms,convert_time=%sms,save_time=%sms,total_time=%sms,msg_len=%s",
                          time2 - time1, time3 - time2, time4 - time3, time4 - time1, len(msglist))
