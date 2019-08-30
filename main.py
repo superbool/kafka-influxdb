@@ -5,6 +5,7 @@ import time
 import ConfigParser
 import signal
 import thread
+import json
 from confluent_kafka import Consumer, KafkaError
 import logging
 
@@ -15,6 +16,11 @@ thread_running = True
 
 def time_now():
     return int(round(time.time() * 1000))
+
+
+def post_json(url, data):
+    headers = {'Content-Type': 'application/json'}
+    return requests.post(url=url, headers=headers, data=json.dumps(data), timeout=3)
 
 
 class InfluxdbClient:
@@ -58,7 +64,7 @@ class InfluxdbClient:
         logging.error("save fail retry_times=%s,status=%s,result=%s", retry_times, status, result)
         if self.callback:
             try:
-                requests.post(self.callback, json={"retry": retry_times, "status": status, "result": result}, timeout=3)
+                post_json(url=self.callback, data={"retry": retry_times, "status": status, "result": result})
             except Exception as e:
                 logging.exception("callback error callback:%s", self.callback)
 
