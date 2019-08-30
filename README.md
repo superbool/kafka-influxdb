@@ -25,9 +25,11 @@ consumer.batch.size = 1000
 #influxdb相关配置
 [influxdb]
 url = http://localhost:8086
+database = test
 username = root
 password = root
-database = test
+precision = ns
+callback = http://localhost:8080/alert
 ```
 
 #### 通过接口的配置方式
@@ -46,9 +48,41 @@ python main.py http://localhost:8080/xxxx
     },
     "influxdb":{
         "url":"http://localhost:8086",
+        "database":"test",
         "username":"root",
         "password":"root",
-        "database":"test"
+        "precision":"ns",
+        "callback":"http://localhost:8080/alert"
     }
 }
 ```
+
+## 参数释义
+
+参数分成两部分：
+
+### kafka.consumer
+
+> bootstrap.servers      kafka集群地址，多个地址使用逗号分割
+>
+> group.id               kafka消费group组
+>
+> auto.offset.reset      初始消费位置 earliest从topic的最开始位置消费 latest从最新位置消费
+>
+> consumer.topics        消费的topic
+>
+> consumer.batch.size    单次消费的数据量
+
+### influxdb
+
+> url                    influxdb的地址
+>
+> database               要写入到的数据库
+>
+> username (可选)         用户名
+>
+> password (可选)         密码
+>
+> precision (可选)        写入的时间戳单位 [ns,u,ms,s,m,h]
+>
+> callback (可选)         当写入失败时，通知接口 json格式发送{"retry": retry_times, "status": status, "result": result}

@@ -5,7 +5,6 @@ import time
 import ConfigParser
 import signal
 import thread
-import json
 from confluent_kafka import Consumer, KafkaError
 import logging
 
@@ -22,10 +21,19 @@ class InfluxdbClient:
     def __init__(self, config):
         logging.info("init influxdb. config:%s", config)
         self.url = config.get('url')
+        self.database = config.get('database')
         self.username = config.get('username')
         self.password = config.get('password')
-        self.database = config.get('database')
+        self.precision = config.get('precision')
+        self.callback = config.get('callback')
+
         self.url_write = self.url + '/write?db=' + self.database
+        if self.username:
+            self.url_write += '&u=' + self.username
+        if self.password:
+            self.url_write += '&p=' + self.password
+        if self.precision:
+            self.url_write += '&precision=' + self.precision
         if not self.ping():
             raise Exception("Can't connect to influxdb:" + self.url)
         self.session = requests.Session()
@@ -41,25 +49,28 @@ class InfluxdbClient:
     def write(self, metrics):
         try:
             response = self.session.post(self.url_write, data=metrics, timeout=3)
-            return response.status_code
+            return response.status_code, response.text
         except Exception as e:
             logging.exception("write to influxdb error")
-            return -1
+            return -1, e.message
 
-    def fail_handle(self, status, retry_times, metrics):
-        # TODO 保存失败或者发送报警通知等
-        logging.error("save fail status=%s,retry_times=%s", status, retry_times)
-        pass
+    def fail_handle(self, status, result, retry_times, metrics):
+        logging.error("save fail retry_times=%s,status=%s,result=%s", retry_times, status, result)
+        if self.callback:
+            try:
+                requests.post(self.callback, json={"retry": retry_times, "status": status, "result": result}, timeout=3)
+            except Exception as e:
+                logging.exception("callback error callback:%s", self.callback)
 
     def write_until_success(self, metrics):
         i = 0
-        status = self.write(metrics)
+        status, result = self.write(metrics)
         while (status < 200 or status >= 300):
             i += 1
             if i > 2:
-                self.fail_handle(status, i, metrics)
+                self.fail_handle(status, result, i, metrics)
             time.sleep(i)
-            status = self.write(metrics)
+            status, result = self.write(metrics)
 
 
 def convert_message(msglist):
