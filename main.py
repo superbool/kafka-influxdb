@@ -56,7 +56,7 @@ class InfluxdbClient:
         try:
             url = self.url_write
             if rp != 'default':
-                url += '&rp' + rp
+                url += '&rp=' + rp
             response = self.session.post(url, data=metrics, timeout=3)
             return response.status_code, response.text
         except Exception as e:
