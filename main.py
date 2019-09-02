@@ -98,6 +98,7 @@ def convert_message(msglist):
             metrics = metrics_map.get(key)
             if metrics:
                 metrics += value + '\n'
+                metrics_map[key] = metrics
             else:
                 metrics_map[key] = value + '\n'
         return metrics_map
