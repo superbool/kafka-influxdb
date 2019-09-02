@@ -97,10 +97,9 @@ def convert_message(msglist):
             value = msg.value()
             metrics = metrics_map.get(key)
             if metrics:
-                metrics += value + '\n'
-                metrics_map[key] = metrics
+                metrics.append(value)
             else:
-                metrics_map[key] = value + '\n'
+                metrics_map[key] = [value]
         return metrics_map
     except Exception as e:
         logging.exception('convert_message error')
@@ -129,7 +128,7 @@ def read_and_write(kafka_consumer, influxdb, batch_size):
                 continue
             time3 = time_now()
             for rp, metrics in metrics_map.iteritems():
-                influxdb.write_until_success(rp, metrics)
+                influxdb.write_until_success(rp, '\n'.join(metrics))
             time4 = time_now()
             logging.info("consumer_time=%sms,convert_time=%sms,save_time=%sms,total_time=%sms,msg_len=%s",
                          time2 - time1, time3 - time2, time4 - time3, time4 - time1, len(msglist))
