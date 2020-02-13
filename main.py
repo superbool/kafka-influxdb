@@ -170,7 +170,7 @@ def read_config_from_http(url):
     influxdb_config = config.get('influxdb')
     return kafka_consumer_config, influxdb_config
 
-
+# 支持python3
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         logging.error('需要指定配置文件或读取配置的接口')
