@@ -177,7 +177,7 @@ if __name__ == '__main__':
         sys.exit(1)
     conf_param = sys.argv[1]
 
-    if conf_param.startswith('http'):
+    if conf_param.startswith('http://'):
         kafka_consumer_config, influxdb_config = read_config_from_http(conf_param)
     else:
         kafka_consumer_config, influxdb_config = read_config_from_file(conf_param)
@@ -187,10 +187,10 @@ if __name__ == '__main__':
 
     influxdb = InfluxdbClient(influxdb_config)
     kafka_consumer = init_kafka_consumer(kafka_consumer_config)
-
+    # 启动线程消费
     signal.signal(signal.SIGINT, exit_handler)
     thread.start_new_thread(read_and_write, (kafka_consumer, influxdb, batch_size))
-
+    # 程序循环
     while True:
         # 注意不能使用pass 否则会占用大量cpu
         time.sleep(3600)
