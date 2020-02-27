@@ -1,0 +1,17 @@
+{
+    "kafka.consumer": {
+        "bootstrap.servers": "localhost:9092",
+        "group.id": "test",
+        "auto.offset.reset": "earliest",
+        "consumer.topics": "metrics-test",
+        "consumer.batch.size": 1000
+    },
+    "influxdb": {
+        "url": "http: //localhost:8086",
+        "database": "test_metrics",
+        "username": "root",
+        "password": "root",
+        "precision": "ns",
+        "callback": "http: //localhost:8080/callback"
+    }
+}
