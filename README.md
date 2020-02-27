@@ -1,9 +1,9 @@
 ### 一个高效的将kafka中influxdb line格式指标写入到influxdb的脚本
 
 ### 功能
-1. 同步写入，从kafak消费的数据必须写入到influxdb后才继续消费再写入，否则会一直等待写入；
-2. 批量消费，可以配置指定的批量条数；
-3. 失败处理，写入influxdb失败循环等待，异常通知，程序退出保证写入；
+1. 同步写入，避免数据丢失，从kafak消费的数据必须写入到influxdb承购后才继续消费再写入，否则会一直等待写入；
+2. 批量消费，可以配置指定的批量条数，能大幅度提高写入的效率；
+3. 失败处理，写入influxdb失败循环等待，异常回调通知，程序退出前保证写入完成；
 4. 多配置方式，支持文件或者http接口的形式,自动识别；
 
 
@@ -12,7 +12,7 @@
 ```bash
 python main.py ./simple.conf
 ```
-simple.conf
+simple.conf  key,value 
 ```conf
 #kafka相关配置
 [kafka.consumer]
